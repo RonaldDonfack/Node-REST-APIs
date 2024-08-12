@@ -1,3 +1,5 @@
+const path = require("path");
+
 const express = require("express");
 const bodyParser = require("body-parser");
 const mongoose = require("mongoose");
@@ -11,15 +13,7 @@ const { Result } = require("express-validator");
 
 // app.use(bodyParser.urlencoded()) x-www-form-urlencoded <form> data
 app.use(bodyParser.json()); // application/json
-
-// app.use((req, res , next) => {
-//     res.setHeader('Access-Controle-Allow-Origin', '*');
-//     res.setHeader('Access-Controle-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE');
-//     res.setHeader('Access-Controle-Allow-Headers', 'Content-Type , Authorization');
-//     res.setHeader("Content-Type", "application/json");
-
-//     next();
-// })
+app.use("/images", exprese.static(path.join(__dirname, "images")));
 
 app.use("/feed", feedRoutes);
 
