@@ -1,6 +1,6 @@
 const path = require("path");
 
-const express = require("express");
+const express = require('express');
 const bodyParser = require("body-parser");
 const mongoose = require("mongoose");
 const multer = require("multer");
@@ -11,7 +11,8 @@ const app = express();
 
 app.use(cors());
 const feedRoutes = require("./routes/feed");
-const { Result } = require("express-validator");
+const authRoutes = require('./routes/auth')
+// const { Result } = require("express-validator");
 
 const fileStorage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -40,14 +41,17 @@ app.use(bodyParser.json()); // application/json
 app.use(multer({storage : fileStorage , fileFilter : fileFilter }).single('image'));
 app.use("/images", express.static(path.join(__dirname, "images")));
 
+app.use("/auth", authRoutes);
 app.use("/feed", feedRoutes);
 
 app.use((error, req, res, next) => {
   console.log(error);
   let message = error.message;
   let status = error.statusCode || 500;
+  const data = error.data;
   res.status(status).json({
     message: message,
+    data : data
   });
 });
 

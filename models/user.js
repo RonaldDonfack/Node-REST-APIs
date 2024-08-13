@@ -18,7 +18,7 @@ password : {
 
 status : {
     type : String,
-    require : true
+    default : `I an new`
 },
 post : [{
     type : Schema.Types.ObjectId,
