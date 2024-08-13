@@ -4,13 +4,14 @@ const { body } = require("express-validator");
 const router = express.Router();
 
 const feedController = require("../controllers/feed");
+const isAuth = require("../middleware/is-auth");
 
 // GET /feed/posts
-router.get("/posts", feedController.getPosts);
+router.get("/posts", isAuth, feedController.getPosts);
 
 // POST /feed/posts
 router.post(
-  "/post",
+  "/post", isAuth,
   [
     body("title", "the title should be atleast 5 charateres").trim().isLength({
       min: 5,
@@ -21,13 +22,14 @@ router.post(
         min: 5,
       }),
   ],
+
   feedController.createPost
 );
 
-router.get("/post/:postId", feedController.getPost);
+router.get("/post/:postId", isAuth, feedController.getPost);
 
 router.put(
-  "/post/:postId",
+  "/post/:postId", isAuth,
   [
     body("title", "the title should be atleast 5 charateres").trim().isLength({
       min: 5,
@@ -40,6 +42,6 @@ router.put(
   ],
   feedController.updatePost
 );
-router.delete("/post/:postId", feedController.deletePost);
+router.delete("/post/:postId", isAuth, feedController.deletePost);
 
 module.exports = router;

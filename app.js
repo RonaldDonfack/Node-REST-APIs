@@ -8,8 +8,13 @@ const { v4: uuidv4 } = require("uuid");
 
 const cors = require("cors");
 const app = express();
+const corsOptions = {
+  origin: '*', // Replace with your client's origin
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+  allowedHeaders: ['Authorization', 'Content-Type'], // Allow Authorization header
+};
 
-app.use(cors());
+app.use(cors(corsOptions));
 const feedRoutes = require("./routes/feed");
 const authRoutes = require('./routes/auth')
 // const { Result } = require("express-validator");
