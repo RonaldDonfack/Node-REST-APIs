@@ -2,19 +2,31 @@ const fs = require("fs");
 const path = require("path");
 
 const { validationResult } = require("express-validator");
+
+const io = require("../socket");
 const Post = require("../models/post");
 const User = require("../models/user");
 
 exports.getPosts = async (req, res, next) => {
+  const currentPage = req.query.page || 1;
+  const perPage = 3;
   try {
-    const posts = await Post.find().populate("creator");
-
+    const totalItems = await Post.find().countDocuments();
+    const posts = await Post.find()
+      .populate("creator")
+      .sort({createdAt : -1})
+      .skip((currentPage - 1) * perPage)
+      .limit(perPage);
     if (!posts) {
       const error = new Error("Post not found!");
       error.statusCode = 404;
       throw error;
     }
-    res.status(200).json({ message: "all post found", posts: posts });
+    res.status(200).json({
+      message: "Fetched posts successfully.",
+      posts: posts,
+      totalItems: totalItems,
+    });
   } catch (error) {
     next(error);
   }
@@ -35,8 +47,8 @@ exports.createPost = async (req, res, next) => {
   const imageUrl = req.file.path.replace("\\", "/");
   const title = req.body.title;
   const content = req.body.content;
-  let creator;
-  const newPost = new Post({
+
+  const post = new Post({
     title: title,
     content: content,
     imageUrl: imageUrl,
@@ -44,26 +56,25 @@ exports.createPost = async (req, res, next) => {
   });
 
   try {
-    const post = await newPost.save();
-    try {
-      const user = await User.findById(req.userId);
-      if (!user) {
-        const error = new Error("User not found ");
-        error.statusCode = 404;
-        throw error;
-      }
-      creator = user;
-      user.posts.push(post);
-      const savedUserData = await user.save();
-    } catch (error) {
-      next(error);
+    await post.save();
+    const user = await User.findById(req.userId);
+    if (!user) {
+      const error = new Error("User not found ");
+      error.statusCode = 404;
+      throw error;
     }
+    user.posts.push(post);
+    await user.save();
+    io.getIo().emit("posts", {
+      action: "create",
+      post: { ...post.doc, creator: { _id: req.userId, name: user.name } },
+    });
     res.status(201).json({
       message: "Post created successfully!",
-      post: newPost,
+      post: post,
       creator: {
-        _id: creator._id,
-        name: creator.name,
+        _id: user._id,
+        name: user.name,
       },
     });
   } catch (error) {
@@ -106,13 +117,13 @@ exports.updatePost = async (req, res, next) => {
     throw error;
   }
   try {
-    const post = await Post.findById(postId);
+    const post = await Post.findById(postId).populate('creator');
     if (!post) {
       const error = new Error("Post not found!");
       error.statusCode = 404;
       throw error;
     }
-    if (post.creator.toString() !== req.userId) {
+    if (post.creator._id.toString() !== req.userId) {
       const error = new Error("failed to update");
       error.statusCode = 403;
       throw error;
@@ -124,6 +135,10 @@ exports.updatePost = async (req, res, next) => {
     post.content = content;
     post.imageUrl = imageUrl;
     const savePost = await post.save();
+    io.getIo().emit("posts", {
+      action: "update",
+      post: savePost 
+    });
     res.status(200).json({ message: "Post updated", post: savePost });
   } catch (error) {
     next(error);
@@ -146,12 +161,18 @@ exports.deletePost = async (req, res, next) => {
     }
     // check logged in user
     clearImage(post.imageUrl);
-    const upadatedPost = await Post.findByIdAndDelete(postId);
+    await Post.findByIdAndDelete(postId);
     const user = await User.findById(req.userId);
     user.posts.pull(postId);
-    const savedUserData = await user.save();
-    res.status(200).json({ message: "Post deleted", post: savedUserData });
-  } catch (error) {}
+    await user.save();
+    io.getIo().emit("posts", {
+      action: "delete",
+      post:  postId
+    });
+    res.status(200).json({ message: "Post deleted" });
+  } catch (error) {
+    next(error)
+  }
 };
 const clearImage = (filePath) => {
   filePath = path.join(__dirname, "..", filePath);
@@ -184,10 +205,9 @@ exports.updateStatus = async (req, res, next) => {
     }
     user.status = req.body.status;
     console.log(user.status);
-    const savedUserData = await user.save();
+    await user.save();
     res.status(201).json({ message: "user status updated" });
   } catch (error) {
     next(error);
   }
-  
 };

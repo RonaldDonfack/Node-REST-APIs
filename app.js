@@ -1,6 +1,6 @@
 const path = require("path");
 
-const express = require('express');
+const express = require("express");
 const bodyParser = require("body-parser");
 const mongoose = require("mongoose");
 const multer = require("multer");
@@ -9,14 +9,14 @@ const { v4: uuidv4 } = require("uuid");
 const cors = require("cors");
 const app = express();
 const corsOptions = {
-  origin: '*', // Replace with your client's origin
-  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-  allowedHeaders: ['Authorization', 'Content-Type'], // Allow Authorization header
+  origin: "*", // Replace with your client's origin
+  methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+  allowedHeaders: ["Authorization", "Content-Type"], // Allow Authorization header
 };
 
 app.use(cors(corsOptions));
 const feedRoutes = require("./routes/feed");
-const authRoutes = require('./routes/auth')
+const authRoutes = require("./routes/auth");
 // const { Result } = require("express-validator");
 
 const fileStorage = multer.diskStorage({
@@ -37,13 +37,15 @@ const fileFilter = (req, file, cb) => {
   ) {
     cb(null, true); // Accept the file
   } else {
-      cb(null, false); // Reject the file
+    cb(null, false); // Reject the file
   }
 };
 
 // app.use(bodyParser.urlencoded()) x-www-form-urlencoded <form> data
 app.use(bodyParser.json()); // application/json
-app.use(multer({storage : fileStorage , fileFilter : fileFilter }).single('image'));
+app.use(
+  multer({ storage: fileStorage, fileFilter: fileFilter }).single("image")
+);
 app.use("/images", express.static(path.join(__dirname, "images")));
 
 app.use("/auth", authRoutes);
@@ -56,13 +58,17 @@ app.use((error, req, res, next) => {
   const data = error.data;
   res.status(status).json({
     message: message,
-    data : data
+    data: data,
   });
 });
 
 mongoose
   .connect("mongodb://localhost:27017/messages")
   .then((result) => {
-    app.listen(8080);
+    const server = app.listen(8080);
+    const io = require("./socket").init(server);
+    io.on("connection", (socket) => {
+      console.log("Client connected!");
+    });
   })
   .catch((err) => console.log(err));
