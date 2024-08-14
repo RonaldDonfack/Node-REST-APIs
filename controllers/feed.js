@@ -3,6 +3,7 @@ const path = require("path");
 
 const { validationResult } = require("express-validator");
 const Post = require("../models/post");
+const User = require("../models/user");
 
 exports.getPosts = (req, res, next) => {
   Post.find()
@@ -37,24 +38,41 @@ exports.createPost = (req, res, next) => {
   const imageUrl = req.file.path.replace("\\", "/");
   const title = req.body.title;
   const content = req.body.content;
+  let creator;
   const post = new Post({
     title: title,
     content: content,
     imageUrl: imageUrl,
-    creator: { name: "Etane" },
+    creator: req.userId,
   });
+
   post
     .save()
     .then((result) => {
+      return User.findById( req.userId);
+    })
+    .then((user) => {
+      if (!user) {
+        const error = new Error("User not found ");
+        error.statusCode = 404;
+        throw error;
+      }
+      creator = user;
+      user.posts.push(post);
+      return user.save();
+    })
+    .then((result) => {
       res.status(201).json({
         message: "Post created successfully!",
-        post: result,
+        post: post,
+        creator: {
+          _id: creator._id,
+          name: creator.name,
+        },
       });
     })
+
     .catch((err) => {
-      if (!err.statusCode) {
-        err.statusCode = 500;
-      }
       next(err);
     });
 };
@@ -105,6 +123,11 @@ exports.updatePost = (req, res, next) => {
         error.statusCode = 404;
         throw error;
       }
+      if (post.creator.toString() !== req.userId) {
+        const error = new Error("failed to update");
+        error.statusCode = 403;
+        throw error;
+      }
       if (imageUrl !== post.imageUrl) {
         clearImage(post.imageUrl);
       }
@@ -124,28 +147,37 @@ exports.updatePost = (req, res, next) => {
       next(err);
     });
 };
+
 exports.deletePost = (req, res, next) => {
   const postId = req.params.postId;
-  Post
-    .findById(postId)
+  Post.findById(postId)
     .then((post) => {
       if (!post) {
         const error = new Error("Post not found!");
         error.statusCode = 404;
+        throw error; 
+      }
+      if (post.creator.toString() !== req.userId) {
+        const error = new Error("failed to delete");
+        error.statusCode = 403;
         throw error;
       }
       // check logged in user
       clearImage(post.imageUrl);
       return Post.findByIdAndDelete(postId);
     })
+    .then(result => {
+       return User.findById(req.userId);
+    })
+    .then(user=> {
+      user.posts.pull(postId);
+      return user.save();
+    })
     .then((result) => {
       console.log(result);
       res.status(200).json({ message: "Post deleted", post: result });
     })
     .catch((err) => {
-      if (!err.statusCode) {
-        err.statusCode = 500;
-      }
       next(err);
     });
 };

@@ -20,7 +20,7 @@ status : {
     type : String,
     default : `I an new`
 },
-post : [{
+posts : [{
     type : Schema.Types.ObjectId,
     ref : 'Post'
 }]
