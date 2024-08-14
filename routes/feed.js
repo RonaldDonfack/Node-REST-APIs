@@ -11,7 +11,8 @@ router.get("/posts", isAuth, feedController.getPosts);
 
 // POST /feed/posts
 router.post(
-  "/post", isAuth,
+  "/post",
+  isAuth,
   [
     body("title", "the title should be atleast 5 charateres").trim().isLength({
       min: 5,
@@ -29,7 +30,8 @@ router.post(
 router.get("/post/:postId", isAuth, feedController.getPost);
 
 router.put(
-  "/post/:postId", isAuth,
+  "/post/:postId",
+  isAuth,
   [
     body("title", "the title should be atleast 5 charateres").trim().isLength({
       min: 5,
@@ -43,5 +45,14 @@ router.put(
   feedController.updatePost
 );
 router.delete("/post/:postId", isAuth, feedController.deletePost);
+
+router.get("/status", isAuth, feedController.getStatus);
+
+router.put(
+  "/status",
+  isAuth,
+  [body("status").trim().not().isEmpty()],
+  feedController.updateStatus
+);
 
 module.exports = router;

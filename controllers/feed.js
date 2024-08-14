@@ -49,7 +49,7 @@ exports.createPost = (req, res, next) => {
   post
     .save()
     .then((result) => {
-      return User.findById( req.userId);
+      return User.findById(req.userId);
     })
     .then((user) => {
       if (!user) {
@@ -155,7 +155,7 @@ exports.deletePost = (req, res, next) => {
       if (!post) {
         const error = new Error("Post not found!");
         error.statusCode = 404;
-        throw error; 
+        throw error;
       }
       if (post.creator.toString() !== req.userId) {
         const error = new Error("failed to delete");
@@ -166,10 +166,10 @@ exports.deletePost = (req, res, next) => {
       clearImage(post.imageUrl);
       return Post.findByIdAndDelete(postId);
     })
-    .then(result => {
-       return User.findById(req.userId);
+    .then((result) => {
+      return User.findById(req.userId);
     })
-    .then(user=> {
+    .then((user) => {
       user.posts.pull(postId);
       return user.save();
     })
@@ -184,4 +184,37 @@ exports.deletePost = (req, res, next) => {
 const clearImage = (filePath) => {
   filePath = path.join(__dirname, "..", filePath);
   fs.unlink(filePath, (err) => console.log(err));
+};
+
+exports.getStatus = (req, res, next) => {
+  let status;
+  User.findById(req.userId)
+    .then((user) => {
+      if (!user) {
+        const error = new Error("User not found ");
+        error.statusCode = 404;
+        throw error;
+      }
+      status = user.status;
+      res.status(200).json({ message: "user status updated", status: status });
+    })
+    .catch((err) => next(err));
+};
+
+exports.updateStatus = (req, res, next) => {
+  User.findById(req.userId)
+    .then((user) => {
+      if (!user) {
+        const error = new Error("User not found ");
+        error.statusCode = 404;
+        throw error;
+      }
+      user.status = req.body.status;
+      console.log(user.status);
+      return user.save();
+    })
+    .then((result) => {
+      res.status(201).json({ message: "user status updated" });
+    })
+    .catch((err) => next(err));
 };
