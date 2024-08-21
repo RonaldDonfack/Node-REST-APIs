@@ -1,12 +1,19 @@
 const path = require("path");
+const fs = require("fs");
 
 const express = require("express");
 const bodyParser = require("body-parser");
 const mongoose = require("mongoose");
 const multer = require("multer");
 const { v4: uuidv4 } = require("uuid");
-
+const { graphqlHTTP } = require("express-graphql");
 const cors = require("cors");
+
+const graphqlSchema = require("./graphql/schema");
+const graphqlResolver = require("./graphql/resolvers");
+const auth = require("./middleware/auth");
+const { clearImage } = require("./utils/file");
+
 const app = express();
 const corsOptions = {
   origin: "*", // Replace with your client's origin
@@ -15,8 +22,7 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-const feedRoutes = require("./routes/feed");
-const authRoutes = require("./routes/auth");
+
 // const { Result } = require("express-validator");
 
 const fileStorage = multer.diskStorage({
@@ -48,9 +54,43 @@ app.use(
 );
 app.use("/images", express.static(path.join(__dirname, "images")));
 
-app.use("/auth", authRoutes);
-app.use("/feed", feedRoutes);
+app.use(auth);
 
+app.put("/post-image", (req, res, next) => {
+  if (!req.isAuth) {
+    throw new Error("Not authenticated");
+  }
+  if (!req.file) {
+    return res.status(200).json({ message: "No file provided" });
+  }
+  if (req.body.oldPath) {
+    clearImage(req.body.oldPath);
+    // console.log('the image file path is' , req.file.path);
+  }
+  return res
+    .status(201)
+    .json({
+      message: "File stored",
+      filePath: req.file.path.replace("\\", "/"),
+    });
+});
+app.use(
+  "/graphql",
+  graphqlHTTP({
+    schema: graphqlSchema,
+    rootValue: graphqlResolver,
+    graphiql: true,
+    customFormatErrorFn(err) {
+      if (!err.originalError) {
+        return err;
+      }
+      const message = err.message || "An error occured";
+      const code = err.originalError.code;
+      const data = err.originalError.data;
+      return { message: message, status: code, data: data };
+    },
+  })
+);
 app.use((error, req, res, next) => {
   console.log(error);
   let message = error.message;
@@ -65,10 +105,6 @@ app.use((error, req, res, next) => {
 mongoose
   .connect("mongodb://localhost:27017/messages")
   .then((result) => {
-    const server = app.listen(8080);
-    const io = require("./socket").init(server);
-    io.on("connection", (socket) => {
-      console.log("Client connected!");
-    });
+    app.listen(8080);
   })
   .catch((err) => console.log(err));
